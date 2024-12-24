@@ -1,84 +1,78 @@
 use std::time::Instant;
+//answer for the first challenge is 2378
+//answer for the second challenge is 1796
+fn is_in_bounds(x: i32, y: i32, matrix: &Vec<Vec<char>>) -> bool {
+    x >= 0 && y >= 0 && x < matrix.len() as i32 && y < matrix[0].len() as i32
+}
 
 fn check_xmas(matrix: &Vec<Vec<char>>, x: i32, y: i32) -> u64 {
-    let mut xmas: u64 = 0;
-    let x_pos: [i32; 8] = [0,1,1,-1,0,-1,-1,1];
-    let y_pos: [i32; 8] = [1,1,0,1,-1,-1,0,-1];
-    let xmas_chars: [char; 3] = ['M', 'A', 'S'];
-    for i in 0..8 {
-        let x_new = x + x_pos[i] ;
-        let y_new = y + y_pos[i];
-        if x_new < 0 || y_new < 0 || x_new >= matrix.len() as i32 || y_new >= matrix[0].len() as i32 {
-            continue;
-        }
-      
-        let mut is_xmas = false;
-        for j in 1..4 {
-            let x_new = x + x_pos[i]*j;
-            let y_new = y + y_pos[i]*j;
-            if x_new < 0 || y_new < 0 || x_new >= matrix.len() as i32 || y_new >= matrix[0].len() as i32 {
-                is_xmas = false;
-                break;
-            }
-            if matrix[x_new as usize][y_new as usize] == xmas_chars[j as usize - 1] {
-                is_xmas = true;
-            } else {
-                is_xmas = false;
-                break;
-            }
-        }
-        if is_xmas {
-            xmas += 1;
-        }
-    }
-    xmas
+
+    const DIRECTIONS: [(i32, i32); 8] = [(0,1), (1,1), (1,0), (1,-1), (0,-1), (-1,-1), (-1,0), (-1,1)];
+    const XMAS_CHARS: [char; 3] = ['M', 'A', 'S'];
+
+    DIRECTIONS.iter().filter(|(dx,dy)| {
+        (1..4).all(|step| {
+            let x_new = x + dx * step;
+            let y_new = y + dy * step;
+            is_in_bounds(x_new, y_new, matrix) && matrix[x_new as usize][y_new as usize] == XMAS_CHARS[step as usize - 1]
+        })
+    }).count() as u64
+   
 }
 
 fn check_x_mas(matrix: &Vec<Vec<char>>, x: usize, y: usize) -> u64 {
-    let mut xmas: u64 = 0;
-    let x_pos: [i32; 4] = [1,-1,1,-1];
-    let y_pos: [i32; 4] = [1,1,-1,-1];
-    let mut is_valid = true;
-    for i in 0..4 {
-        let x_new = x as i32 + x_pos[i];
-        let y_new = y as i32 + y_pos[i];
-        if x_new < 0 || y_new < 0 || x_new >= matrix.len() as i32 || y_new >= matrix[0].len() as i32 || matrix[x_new as usize][y_new as usize] == 'X' || matrix[x_new as usize][y_new as usize] == 'A' {
-            is_valid = false;
-            break;
-        }
-    }
-    if is_valid && matrix[x-1][y-1]!=matrix[x+1][y+1] && matrix[x-1][y+1]!=matrix[x+1][y-1] {
-        xmas += 1;
-    }
-    xmas
+    const DIRECTIONS: [(i32, i32); 4] = [(1,-1), (1,1), (-1,-1), (-1,1)];
+
+    let valid_positions = DIRECTIONS.iter().all(|(dx,dy)| {
+            let x_new = x as i32 + dx;
+            let y_new = y as i32 + dy;
+            is_in_bounds(x_new, y_new, matrix) &&
+            !matches!(matrix[x_new as usize][y_new as usize], 'X' | 'A')
+    });
+
+    let diagonals_pair_differ = valid_positions && {
+        let top_left = matrix[x-1][y-1];
+        let top_right = matrix[x+1][y+1];
+        let bottom_left = matrix[x-1][y+1];
+        let bottom_right = matrix[x+1][y-1];
+        top_left != top_right && bottom_left != bottom_right
+    };
+    diagonals_pair_differ as u64
 }
 
 fn first_challenge() {
-    let contents = std::fs::read_to_string("input.txt").expect("fail to read from input.txt");
-    let matrix = contents.lines().map(|line| line.chars().collect::<Vec<_>>()).collect::<Vec<_>>();
-    let mut xmas_count: u64 = 0;
-    for i in 0..matrix.len() {
-        for j in 0..matrix[i].len() {
-            if matrix[i][j] == 'X' {
-                xmas_count += check_xmas(&matrix, i as i32, j as i32);
-            }
-        }
-    }
+    let contents = std::fs::read_to_string("input.txt")
+        .expect("fail to read from input.txt");
+    
+    let matrix: Vec<Vec<char>> = contents
+        .lines()
+        .map(|line| line.chars().collect())
+        .collect();
+
+    let xmas_count: u64 = (0..matrix.len())
+        .map(|i| {
+            (0..matrix[i].len())
+                .filter(|&j| matrix[i][j] == 'X')
+                .map(|j| check_xmas(&matrix, i as i32, j as i32))
+                .sum::<u64>()
+        })
+        .sum();
+
     println!("answer for the first challenge is {}", xmas_count);
 }
 
 
 fn second_challenge() {
     let contents = std::fs::read_to_string("input.txt").expect("fail to read from input.txt");
-    let matrix = contents.lines().map(|line| line.chars().collect::<Vec<_>>()).collect::<Vec<_>>();
-    let mut xmas_count: u64 = 0;
-    for i in 0..matrix.len() {
-        for j in 0..matrix[i].len() {
-            if matrix[i][j] == 'A' {
-                xmas_count += check_x_mas(&matrix, i, j);
-            }
-        }
-    }
+    let matrix: Vec<Vec<char>> = contents.lines().map(|line| line.chars().collect()).collect();
+    let xmas_count: u64 = (0..matrix.len())
+        .map(|i| {
+            (0..matrix[i].len())
+                .filter(|&j| matrix[i][j] == 'A')
+                .map(|j| check_x_mas(&matrix, i, j))
+                .sum::<u64>()
+        })
+        .sum();
     
     println!("answer for the second challenge is {}", xmas_count);
 }
